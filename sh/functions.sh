@@ -178,6 +178,45 @@ etime()
 	echo $elapsed
 }
 
+exists_column_psql()
+{
+	#############################################################
+	# Uses postgres psql command to check if column $c exists in  
+	# table $t in schema $s of database $d
+	#  
+	# Returns 't' if column exists, else 'f'
+	#  
+	# Usage:
+	# exists_column_psql -u [user] -d [db] -s [schema] -t [table] -c [column]
+	#############################################################
+	
+	# Get parameters
+	while [ "$1" != "" ]; do
+		case $1 in
+			-u )			shift
+							user=$1
+							;;
+			-d )			shift
+							db=$1
+							;;
+			-s )			shift
+							schema=$1
+							;;
+			-t )			shift
+							table=$1	
+							;;
+			-c )			shift
+							column=$1	
+							;;
+		esac
+		shift
+	done	
+	
+	sql_column_exists="SELECT EXISTS ( SELECT * FROM information_schema.columns WHERE column_name='$column' AND table_name='$table' AND table_schema='$schema') AS exists"
+	column_exists=`psql -U $user -d $db -lqt -c "$sql_column_exists" | tr -d '[[:space:]]'`
+	echo $column_exists
+}
+
 exists_table_psql()
 {
 	#############################################################
@@ -291,6 +330,41 @@ exists_db_psql()
 		echo 't'
 	fi
 }
+
+has_records_psql()
+{
+	#############################################################
+	# Uses postgres psql command to check if table $t has one or  
+	# more records.
+	# Returns 't' if table exists, else 'f'
+	#
+	# Usage:
+	# exists_table_psql -u [user] -d [db] -t [table]
+	# 
+	# Note: table name can be schema qualified 
+	#############################################################
+	
+	# Get parameters
+	while [ "$1" != "" ]; do
+		case $1 in
+			-u )			shift
+							user=$1
+							;;
+			-d )			shift
+							db=$1
+							;;
+			-t )			shift
+							table=$1	
+							;;
+		esac
+		shift
+	done	
+	
+	sql_has_records="SELECT EXISTS ( SELECT * FROM $table ) AS a"
+	has_records=`psql -U $user -d $db -lqt -c "$sql_has_records" | tr -d '[[:space:]]'`
+	echo $has_records
+}
+
 
 trim() {
 	##########################################
