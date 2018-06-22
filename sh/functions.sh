@@ -37,6 +37,7 @@ confirm()
 	
 	if ! [ -z "$1" ]; then 
 		echo "$1"
+		echo
 	fi
 	 	
 	read -p  "Continue? (Y/N): " -r
@@ -321,8 +322,11 @@ exists_index_psql()
 
 exists_db_psql()
 {
-	# Uses psql command to check if postgres database $d exists
+	# Uses psql command to check if postgres database $db exists
 	# Returns 't' if db exists, else 'f'
+	# Usage:
+	# exists_db_psql $db
+	
 	
 	if ! psql -lqt | cut -d \| -f 1 | grep -qw $1; then
 		echo 'f'
