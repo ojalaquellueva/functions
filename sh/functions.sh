@@ -51,6 +51,7 @@ confirm()
 
 echoi()
 {
+	#################################################################
 	# Echos message only if first token=true, otherwise does nothing
 	# If optionally pass most recent exit code, will abort if error
 	# Provides a compact alternative to wrapping echo in if...fi
@@ -59,12 +60,18 @@ echoi()
 	# 	-r 	Carriage return without newline (replaces existing line)
 	#	-e 	Exit status of last operation. If used, -e MUST be 
 	#		followed by $? or $? saved as variable.
-	# Gotcha: may behave unexpectedly if message = "true" or true
+	# 	-l	No log. Suppresses default behavior of writing to logfile
+	# Gotchas: 
+	#	1. May behave unexpectedly if message = "true" or true
+	#	2. Currenly only writes to logfile if screen echo on. Need to fix this.
+	#	3. Logfile name ($glogfile) is global. Need to file this.
+	#################################################################
 
 	# first token MUST be 'true' to continue
 	if [ "$1" = true ]; then
 		
 		shift
+		log="true"
 		msg=""
 		n=" "
 		o=""
@@ -73,6 +80,9 @@ echoi()
 			# token as message		
 			case $1 in
 				-n )			n=" -n "	
+								shift
+								;;
+				-l )			log="false"	
 								shift
 								;;
 				-r )			n=" -ne "	# Enable backslash (\) options
@@ -93,7 +103,11 @@ echoi()
 			esac
 		done	
 		
-		echo $n "$msg"$o
+		if [ "$log" == "false" ]; then
+			echo $n "$msg"$o
+		else
+			echo $n "$msg"$o |& tee -a $glogfile
+		fi
 	fi
 }
 
@@ -381,4 +395,57 @@ trim() {
     # remove trailing whitespace characters
     var="${var%"${var##*[![:space:]]}"}"   
     echo -n "$var"
+}
+
+trim_ws() {
+	##########################################
+	# Trims leading and trailing whitespace
+	# 
+	# Usage:
+	# str=$(trim ${str})
+	##########################################
+
+	local var="$*"
+	var2="$(echo -e ${var} | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+	echo -n "$var2"
+}
+
+is_unique_psql()
+{
+	#############################################################
+	# Uses postgres psql command to check if all values of 
+	# column $c are unique. Use to test for PK violations when
+	# PK contraint not present.
+	#  
+	# Returns 't' if column values unique, else 'f'
+	#  
+	# Usage:
+	# is_unique_psql -u [user] -d [db] -s [schema] -t [table] -c [column]
+	#############################################################
+	
+	# Get parameters
+	while [ "$1" != "" ]; do
+		case $1 in
+			-u )			shift
+							user=$1
+							;;
+			-d )			shift
+							db=$1
+							;;
+			-s )			shift
+							schema=$1
+							;;
+			-t )			shift
+							table=$1	
+							;;
+			-c )			shift
+							column=$1	
+							;;
+		esac
+		shift
+	done	
+		
+	sql_is_unique="SELECT NOT EXISTS ( SELECT $column, COUNT(*) FROM $schema.$table GROUP BY $column HAVING COUNT(*)>1 ) AS a"
+	is_unique=`psql -U $user -d $db -lqt -c "$sql_is_unique" | tr -d '[[:space:]]'`
+	echo $is_unique
 }
